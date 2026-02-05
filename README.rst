@@ -10,9 +10,11 @@ system for the KRZ04 robot, see the `krzos`_ repository.
 .. _krzos: https://github.com/ifurusato/krzos
 
 This permits bidirectional transactions between master and slave, with data
-returned up to 32 characters. Round-trip performance is about 11ms, but if you
-are not requesting returned data (other than "ACK" or "ERR") this can be set
-down to ~3-5ms. This setting may be found in ``tinys3_controller/i2c_master.py``.
+returned up to 62 characters, using a CRC8 checksum. Round-trip performance
+corresponds to message length, designed for a 39 characters packet requiring
+an 11ms delay, but if you are requesting shorter packets or only acknowledgements
+(e.g., "ACK" or "ERR") this can be set lower, down to ~3-5ms. This setting may 
+be found in ``tinys3_controller/i2c_master.py``.
 
 This was developed using CPython on a Raspberry Pi as I2C master, and MicroPython
 on an Unexpected Maker TinyS3 as slave, but could easily be adapted to different
@@ -47,8 +49,21 @@ its "services" will start and a heartbeat blink will occur every second. The ser
 and the startup delay are meant to be expanded into an actual application usage. This
 feature can be disabled if not needed.
 
-Executing ``remote.py`` will start the CLI application. Documentation for acceptable
-commands may be found in the Controller class' ``process()`` method.
+
+Usage
+*****
+
+Executing ``remote.py`` will start the CLI application. The TinyS3 must already be
+running its ``main.py`` script. 
+
+Documentation for acceptable CLI commands may be found in the Controller class'
+``process()`` method. Master-side, there are "go" and "stop" commands that will
+repeat a preconfigured command every second, which could be used for testing or
+a repeating query.
+
+If the slave performance is too slow (for any reason), the slave will generally
+just return the command sent to it (which is what's in its memory buffer prior
+to being processed), otherwise "ACK", "ERR" or specific data. 
 
 
 Files
