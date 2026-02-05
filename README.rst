@@ -36,9 +36,16 @@ Support for `I2CTarget`_ requires `MicroPython`_ v1.27.0 or newer installed on t
 Installation
 ************
 
-Copy the ``./upy/`` files to your TinyS3. When restarted it will blink once initially,
-and then after 7 seconds "services" will start and a heartbeat blink will occur
-every second.
+Copy the ``./upy/`` files to your TinyS3. I recommend `rshell`_ or `mpremote`_, though
+any tool will do.
+
+.. _rshell: https://github.com/dhylands/rshell
+.. _mpremote: https://docs.micropython.org/en/latest/reference/mpremote.html
+
+When the TinyS3 is restarted it will blink once initially, and then after 7 seconds
+its "services" will start and a heartbeat blink will occur every second. The services
+and the startup delay are meant to be expanded into an actual application usage. This
+feature can be disabled if not needed.
 
 Executing ``remote.py`` will start the CLI application. Documentation for acceptable
 commands may be found in the Controller class' ``process()`` method.
