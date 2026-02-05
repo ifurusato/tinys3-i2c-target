@@ -30,6 +30,7 @@ class Controller:
     _PACKED_ACK  = pack_message('ACK')   # acknowledge okay
     _PACKED_NACK = pack_message('NACK')  # acknowledge bad command
     _PACKED_ERR  = pack_message('ERR')   # processing error occurred
+    _PACKED_PING = pack_message('PING')  # processing error occurred
     '''
     A controller for command strings received from the I2CSlave.
     '''
@@ -182,13 +183,15 @@ class Controller:
 
             elif _arg0 == "ping":
                 _exit_color = COLOR_DARK_GREEN
-                return pack_message('PING')
+                return Controller._PACKED_PING
 
             # get/set (data request)
             elif _arg0 == "data":
                 # send test data
                 _exit_color = COLOR_FUCHSIA
-                return packed_message('0000 1111 2222 3333')
+                _message = '0000 1111 2222 3333 4444 5555 6666 7777'
+                print('message: {} chars.'.format(len(_message)))
+                return pack_message(_message)
 
             elif _arg0 == "reset":
                 import machine

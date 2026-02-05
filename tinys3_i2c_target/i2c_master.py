@@ -18,7 +18,7 @@ from .message_util import pack_message, unpack_message
 class I2CMaster:
     I2C_BUS_ID  = 1     # the I2C bus number; on a Raspberry Pi the default is 1
     I2C_ADDRESS = 0x43  # the default I2C address
-    WRITE_READ_DELAY_SEC = 0.011 # this may need adjusting for packet length and reliability
+    WRITE_READ_DELAY_SEC = 0.009 # this may need adjusting for packet length and reliability
     '''
     Abstract base class for an I2C master controller.
     '''
