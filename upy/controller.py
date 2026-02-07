@@ -6,7 +6,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2025-11-16
-# modified: 2026-02-05
+# modified: 2026-02-07
 #
 # This is a simplified version of the KRZ04 Controller.
 
@@ -16,11 +16,9 @@ import math, random
 from machine import Timer
 from machine import RTC
 
-import neopixel
 import tinys3
 
 from colors import*
-from pixel import Pixel
 from message_util import pack_message
 
 class Controller:
@@ -33,12 +31,15 @@ class Controller:
     _PACKED_PING = pack_message('PING')  # processing error occurred
     '''
     A controller for command strings received from the I2CSlave.
+
+    Args:
+        pixel:    an instance of the Pixel class, provides NeoPixel support
     '''
-    def __init__(self):
+    def __init__(self, pixel):
         self._startup_ms = time.ticks_ms()
         self._slave = None
         # neopixel support, with initial blink
-        self._pixel = self._create_pixel()
+        self._pixel = pixel
         self._pixel.set_color(0, COLOR_CYAN)
         time.sleep_ms(100)
         self._pixel.set_color(0, COLOR_BLACK)
@@ -185,12 +186,9 @@ class Controller:
                 _exit_color = COLOR_DARK_GREEN
                 return Controller._PACKED_PING
 
-            # get/set (data request)
-            elif _arg0 == "data":
-                # send test data
+            elif _arg0 == "data": # data request (TBD)
+                _message = self._get_data()
                 _exit_color = COLOR_FUCHSIA
-                _message = '0000 1111 2222 3333 4444 5555 6666 7777'
-                print('message: {} chars.'.format(len(_message)))
                 return pack_message(_message)
 
             elif _arg0 == "reset":
@@ -222,22 +220,20 @@ class Controller:
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
+    def _get_data(self):
+        '''
+        Return data (TBD).
+        '''
+        _data = '0000 1111 2222 3333 4444 5555 6666 7777'
+#       print('data: {} chars.'.format(len(_data)))
+        return _data
+
     def _on_command(self, cmd):
         '''
         The callback from the I2C slave, passes the command on for processing,
         returning the result.
         '''
         return self.process(cmd)
-
-    def _create_pixel(self):
-        '''
-        Initialises Neopixel support on the UnexpectedMaker TinyS3. If using
-        a different board this method will need to be modified accordingly.
-        '''
-        _pixel = Pixel(pin=tinys3.RGB_DATA, pixel_count=1)
-        tinys3.set_pixel_power(1)
-        _pixel.set_color(0, COLOR_BLACK)
-        return _pixel
 
     def _led_off(self, timer=None):
         self._pixel.set_color(0, COLOR_BLACK)
