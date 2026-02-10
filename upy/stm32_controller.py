@@ -18,6 +18,7 @@ class PixelState:
         self.base_color = color
         self.color = color.rgb
         self.phase = phase
+        self._pixel_off_pending = False
 
     def is_active(self):
         return self.base_color != COLOR_BLACK
@@ -35,6 +36,7 @@ class STM32Controller(Controller):
     strip and a 24 pixel NeoPixel ring.
     '''
     def __init__(self):
+        self._pixel_off_pending = False
         self._pixel = Pixel(pin=STM32Controller.RING_PIN, pixel_count=1, brightness=0.1)
         super().__init__(self._pixel)
         # ready
@@ -43,6 +45,21 @@ class STM32Controller(Controller):
         from pyb import Timer
         
         self._pixel_timer = Timer(4)
-        self._pixel_timer.init(freq=self._pixel_timer_freq_hz, callback=self._led_off)
+        self._pixel_timer.init(freq=self._pixel_timer_freq_hz, callback=self._timer_irq)
+
+    def _timer_irq(self, timer):
+        self._pixel_off_pending = True
+
+    def _led_off(self, timer=None):
+        # override to use deferred execution via flag
+        self._pixel_off_pending = True
+
+    def tick(self, delta_ms):
+        # handle deferred pixel updates first
+        if self._pixel_off_pending:
+            self._pixel_off_pending = False
+            self._pixel.set_color(0, COLOR_BLACK)
+        # then do normal tick processing
+        super().tick(delta_ms)
 
 #EOF

@@ -65,6 +65,9 @@ class I2CSlave:
         self._callback = callback
 
     def _irq_handler(self, i2c):
+        '''
+        The IRQ handler used on the ESP32 and RP2.
+        '''
         flags = i2c.irq().flags()
         if flags & I2CTarget.IRQ_END_WRITE:
             msg_len = self._mem_buf[0]
