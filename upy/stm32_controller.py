@@ -6,7 +6,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-02-09
-# modified: 2026-02-09
+# modified: 2026-02-11
 
 import sys
 from controller import Controller
@@ -41,14 +41,15 @@ class STM32Controller(Controller):
         super().__init__(self._pixel)
         # ready
 
-    def _create_pixel_timer(self):
-        from pyb import Timer
-        
-        self._pixel_timer = Timer(4)
-        self._pixel_timer.init(freq=self._pixel_timer_freq_hz, callback=self._timer_irq)
+def _create_pixel_timer(self):
+    from pyb import Timer
+    
+    self._pixel_timer = Timer(4)
+    self._pixel_timer.init(freq=self._pixel_timer_freq_hz, callback=self._timer_irq)
 
     def _timer_irq(self, timer):
         self._pixel_off_pending = True
+        self._pixel_timer.deinit()  # stop after first trigger
 
     def _led_off(self, timer=None):
         # override to use deferred execution via flag
