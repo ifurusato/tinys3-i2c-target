@@ -91,9 +91,39 @@ class Controller:
         self._slave = slave
         self._slave.add_callback(self._on_command)
 
+    def pre_process(self, cmd, arg0, arg1, arg2, arg3, arg4):
+        '''
+        Pre-process the arguments, returning a response and color if a match occurs.
+        Such a match precludes further processing.
+        '''
+#       print("pre-process command '{}' with arg0: '{}'; arg1: '{}'; arg2: '{}'; arg3: '{}'; arg4: '{}'".format(cmd, arg0, arg1, arg2, arg3, arg4))
+        if arg0 == "__extend_here__":
+            return None, None
+        else:
+            return None, None
+
+    def post_process(self, cmd, arg0, arg1, arg2, arg3, arg4):
+        '''
+        Post-process the arguments, returning a NACK and color if no match on arg0 occurs.
+        '''
+#       print("post-process command '{}' with arg0: '{}'; arg1: '{}'; arg2: '{}'; arg3: '{}'; arg4: '{}'".format(cmd, arg0, arg1, arg2, arg3, arg4))
+        if arg0 == "__extend_here__":
+            return None, None
+        else:
+            print("WARNING: unrecognised command '{}' as arguments: {}{}{}{}{}".format(
+                    cmd,
+                    "; arg0: '{}'".format(arg0) if arg0 else '',
+                    "; arg1: '{}'".format(arg1) if arg1 else '',
+                    "; arg2: '{}'".format(arg2) if arg2 else '',
+                    "; arg3: '{}'".format(arg3) if arg3 else '',
+                    "; arg2: '{}'".format(arg4) if arg4 else ''))
+            return Controller._PACKED_NACK, COLOR_ORANGE
+
     def process(self, cmd):
         '''
         Processes the callback from the I2C slave, returning 'ACK', 'NACK' or 'ERR'.
+
+        This calls pre_process() and post_process() in turn.
 
         Commands:
             time get | set <timestamp>           # set/get RTC time
@@ -122,6 +152,12 @@ class Controller:
             _arg3 = parts[3] if len(parts) > 3 else None
             _arg4 = parts[4] if len(parts) > 4 else None
 #           print("cmd: '{}'; arg0: '{}'; arg1: '{}'; arg2: '{}'; arg3: '{}'; arg4: '{}'".format(cmd, _arg0, _arg1, _arg2, _arg3, _arg4))
+
+            # pre-process
+            _response, __exit_color = self.pre_process(cmd, _arg0, _arg1, _arg2, _arg3, _arg4)
+            if _response is not None:
+                _exit_color = __exit_color
+                return _response
 
             if _arg0 == "time":
 #               print('time: {}, {}'.format(_arg1, _arg2))
@@ -210,15 +246,9 @@ class Controller:
                 return Controller._PACKED_ACK
 
             else:
-                print("WARNING: unrecognised command: '{}'{}{}{}".format(
-                        cmd,
-                        "; arg0: '{}'".format(_arg0) if _arg0 else '',
-                        "; arg1: '{}'".format(_arg1) if _arg1 else '',
-                        "; arg2: '{}'".format(_arg2) if _arg2 else ''))
-                _exit_color = COLOR_ORANGE
-                return Controller._PACKED_NACK
-            _exit_color = COLOR_DARK_GREEN
-            return Controller._PACKED_ACK
+                # post-process
+                _response, _exit_color = self.post_process(cmd, _arg0, _arg1, _arg2, _arg3, _arg4)
+                return _response
 
         except Exception as e:
             print("ERROR: {} raised by controller: {}".format(type(e), e))
