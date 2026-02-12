@@ -32,7 +32,7 @@ Requirements
 Requires Python 3.8.5 or newer, written using Python 3.11.2.
 
 Support for `I2CTarget`_ requires `MicroPython`_ v1.27.0 or newer installed on
-the microcontroller.
+the microcontroller. Versions prior to that do not provide I2CTarget support.
 
 .. _I2CTarget: https://docs.micropython.org/en/latest/library/machine.I2CTarget.html
 .. _MicroPython: https://micropython.org/download/UM_TINYS3/
