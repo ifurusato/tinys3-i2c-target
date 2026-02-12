@@ -17,9 +17,6 @@ from i2c_slave import I2CSlave
 
 # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
-RING_CONTROLLER  = True # subclasses Stm32Controller
-RING_PIXEL_COUNT = 24
-
 RELOAD_MODULES = True
 BOARD = 'STM32F405'  # 'TINYS3' | 'TINYFX' | 'RPI_PICO' | 'STM32F405' | 'ESP32_TINY'
 
@@ -63,9 +60,10 @@ BOARD_CONFIGS = {
         'i2c_address': 0x49,
         'scl_pin': None,
         'sda_pin': None,
-        'controller_class': 'STM32Controller',
+        'controller_class': 'RingController',
         'family': 'STM32',
         'pixel_pin': 'B14',
+        'pixel_count': 24,
         'color_order': 'GRB',
     },
     'ESP32_TINY': {
@@ -94,19 +92,14 @@ if RELOAD_MODULES:
     gc.collect()
 
 def create_controller(config):
-    if config['controller_class'] == 'STM32Controller':
-        if RING_CONTROLLER:
-            from ring_controller import RingController
-
-            return RingController(config)
-        else:
-            from stm32_controller import STM32Controller
-
-            return STM32Controller(config)
-    else:
-        from controller import Controller
-
-        return Controller(config)
+    """
+    Dynamically import and instantiate the controller class based on config.
+    """
+    class_name = config['controller_class']
+    module_name = class_name.lower()
+    module = __import__(module_name)
+    cls = getattr(module, class_name)
+    return cls(config)
 
 async def i2c_loop(controller, slave):
     global enabled

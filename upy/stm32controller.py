@@ -77,17 +77,17 @@ class STM32Controller(Controller):
         Pre-process the arguments, returning a response and color if a match occurs.
         Such a match precludes further processing.
         '''
-        print("🦊 pre-process command '{}' with arg0: '{}'; arg1: '{}'; arg2: '{}'; arg3: '{}'; arg4: '{}'".format(cmd, arg0, arg1, arg2, arg3, arg4))
+#       print("pre-process command '{}' with arg0: '{}'; arg1: '{}'; arg2: '{}'; arg3: '{}'; arg4: '{}'".format(cmd, arg0, arg1, arg2, arg3, arg4))
         if arg0 == "__extend_here__":
             return None, None
         else:
             return None, None
-    
+
     def post_process(self, cmd, arg0, arg1, arg2, arg3, arg4):
         '''
         Post-process the arguments, returning a NACK and color if no match on arg0 occurs.
         '''
-        print("🦊 post-process command '{}' with arg0: '{}'; arg1: '{}'; arg2: '{}'; arg3: '{}'; arg4: '{}'".format(cmd, arg0, arg1, arg2, arg3, arg4))
+#       print("post-process command '{}' with arg0: '{}'; arg1: '{}'; arg2: '{}'; arg3: '{}'; arg4: '{}'".format(cmd, arg0, arg1, arg2, arg3, arg4))
         if arg0 == "__extend_here__":
             return None, None
         else:

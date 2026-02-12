@@ -6,33 +6,37 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-02-09
-# modified: 2026-02-11
+# modified: 2026-02-12
 
 import sys
 import time
 import math, random
 from controller import Controller
-from stm32_controller import STM32Controller, PixelState
+from stm32controller import STM32Controller, PixelState
 from colors import *
 from pixel import Pixel
 
 class RingController(STM32Controller):
     STRIP_PIN   = 'B12'
     RING_PIN    = 'B14'
-    PIXEL_COUNT = 24
     '''
     An implementation using a WeAct STM32F405 optionally connected to a NeoPixel
     strip and a 24 pixel NeoPixel ring.
     '''
     def __init__(self, config):
+        self._pixel_count = config['pixel_count']
         super().__init__(config)
-        # ...............
+        # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        if self._pixel_count is None:
+            raise ValueError('pixel count is undefined.')
+        elif self._pixel_count == 0:
+            raise ValueError('pixel count is 0.')
         # rotation
         self._ring_offset      = 0
         self._rotate_direction = 1 # 1 or -1
         self._enable_rotate    = False
         self._rotate_pending   = False # flag for deferred execution
-        self._ring_model = [PixelState() for _ in range(RingController.PIXEL_COUNT)]
+        self._ring_model = [PixelState() for _ in range(self._pixel_count)]
         # theme
         self._enable_theme     = False
         self._pulse_steps      = 40
@@ -76,16 +80,16 @@ class RingController(STM32Controller):
 
     def _create_pixel(self):
         from pixel import Pixel
-        
-        _pixel_pin = self._config['pixel_pin']
-        family     = self._config['family']
+
+        _pixel_pin   = self._config['pixel_pin']
+        family       = self._config['family']
         if family == 'TINYS3':
             import tinys3
 
             _pixel_pin = tinys3.RGB_DATA
             tinys3.set_pixel_power(1)
-        _pixel = Pixel(pin=_pixel_pin, pixel_count=RingController.PIXEL_COUNT, color_order=self._config['color_order'])
-        print('NeoPixel ring with {} pixels configured on pin {}'.format(RingController.PIXEL_COUNT, _pixel_pin))
+        _pixel = Pixel(pin=_pixel_pin, pixel_count=self._pixel_count, color_order=self._config['color_order'])
+        print('NeoPixel ring with {} pixels configured on pin {}'.format(self._pixel_count, _pixel_pin))
         _pixel.set_color(0, COLOR_CYAN)
         time.sleep_ms(100)
         _pixel.set_color(0, COLOR_BLACK)
@@ -225,7 +229,7 @@ class RingController(STM32Controller):
                         if not color:
                             print("ERROR: could not find color: arg2: '{}'; arg3: '{}'".format(arg2, arg3))
                             return Controller._PACKED_ERR, COLOR_RED
-                        for idx in range(RingController.PIXEL_COUNT):
+                        for idx in range(self._pixel_count):
                             self._set_ring_color(idx, color)
                         return Controller._PACKED_ACK, COLOR_DARK_GREEN
                 else:
@@ -236,7 +240,7 @@ class RingController(STM32Controller):
                             self._set_ring_color(index, color)
                             return Controller._PACKED_ACK, COLOR_DARK_GREEN
                     else:
-                        print("ERROR: index value {} out of bounds (1-{}).".format(index, RingController.PIXEL_COUNT))
+                        print("ERROR: index value {} out of bounds (1-{}).".format(index, self._pixel_count))
                         return Controller._PACKED_ERR, COLOR_RED
                 print("ERROR: could not process input: '{}'".format(cmd))
             finally:
@@ -294,7 +298,7 @@ class RingController(STM32Controller):
                     try:
                         self._enable_theme = False
                         target = int(arg2)
-                        if 1 <= target <= RingController.PIXEL_COUNT:
+                        if 1 <= target <= self._pixel_count:
                             self._theme_target_pixels = target
                             self._init_theme(reset=True)
                             return Controller._PACKED_ACK, COLOR_DARK_GREEN
@@ -311,7 +315,7 @@ class RingController(STM32Controller):
                     try:
                         target = int(arg2)
                         self._theme_target_pixels = target
-                        if 1 <= target <= RingController.PIXEL_COUNT:
+                        if 1 <= target <= self._pixel_count:
                             self._populate(target, arg1)
                             return Controller._PACKED_ACK, COLOR_DARK_GREEN
                         else:
@@ -339,7 +343,7 @@ class RingController(STM32Controller):
 
         else:
             return None, None
-    
+
     def post_process(self, cmd, arg0, arg1, arg2, arg3, arg4):
         '''
         Post-process the arguments, returning a NACK and color if no match on arg0 occurs.
