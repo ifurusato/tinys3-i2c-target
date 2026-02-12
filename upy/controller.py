@@ -14,7 +14,6 @@ import math, random
 from machine import RTC
 
 from colors import*
-from pico_pixel import PicoPixel
 from message_util import pack_message
 
 class Controller:
@@ -34,6 +33,7 @@ class Controller:
     def __init__(self, config):
         self._startup_ms            = time.ticks_ms()
         self._config                = config
+        self._family                = config['family']
         self._slave                 = None
         # neopixel support
         self._pixel = self._create_pixel()
@@ -56,8 +56,7 @@ class Controller:
         from pixel import Pixel
 
         _pixel_pin = self._config['pixel_pin']
-        family    = self._config['family']
-        if family == 'TINYS3':
+        if self._family == 'TINYS3':
             import tinys3
 
             _pixel_pin = tinys3.RGB_DATA
@@ -73,10 +72,7 @@ class Controller:
         try:
             from machine import Timer
 
-            if self._family == 'RP2':
-                self._pixel_timer = Timer()
-            else:
-                self._pixel_timer = Timer(0)
+            self._pixel_timer = Timer(0)
             self._pixel_timer.init(freq=self._pixel_timer_freq_hz, callback=self._led_off)
         except Exception as e:
             sys.print_exception(e)
