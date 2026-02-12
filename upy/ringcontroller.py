@@ -17,11 +17,8 @@ from colors import *
 from pixel import Pixel
 
 class RingController(STM32Controller):
-    STRIP_PIN   = 'B12'
-    RING_PIN    = 'B14'
     '''
-    An implementation using a WeAct STM32F405 optionally connected to a NeoPixel
-    strip and a 24 pixel NeoPixel ring.
+    An implementation using a WeAct STM32F405 optionally connected to a 24 pixel NeoPixel ring.
     '''
     def __init__(self, config):
         self._pixel_count = config['pixel_count']
@@ -31,6 +28,7 @@ class RingController(STM32Controller):
             raise ValueError('pixel count is undefined.')
         elif self._pixel_count == 0:
             raise ValueError('pixel count is 0.')
+#       self._strip_pin = 'B12'
         # rotation
         self._ring_offset      = 0
         self._rotate_direction = 1 # 1 or -1
