@@ -1,0 +1,338 @@
+#!/micropython
+# -*- coding: utf-8 -*-
+#
+# Copyright 2020-2026 by Ichiro Furusato. All rights reserved. This file is part
+# of the Robot Operating System project, released under the MIT License.
+#
+# author:   Ichiro Furusato
+# created:  2026-02-09
+# modified: 2026-02-11
+
+import sys
+import time
+import math, random
+from controller import Controller
+from stm32_controller import STM32Controller, PixelState
+from colors import *
+from pixel import Pixel
+
+class RingController(STM32Controller):
+    STRIP_PIN   = 'B12'
+    RING_PIN    = 'B14'
+    PIXEL_COUNT = 24
+    '''
+    An implementation using a WeAct STM32F405 optionally connected to a NeoPixel
+    strip and a 24 pixel NeoPixel ring.
+    '''
+    def __init__(self, config):
+        super().__init__(config)
+        # ...............
+        # rotation
+        self._ring_offset      = 0
+        self._rotate_direction = 1 # 1 or -1
+        self._enable_rotate    = False
+        self._ring_model = [PixelState() for _ in range(RingController.PIXEL_COUNT)]
+        # theme
+        self._enable_theme     = False
+        self._pulse_steps      = 40
+        self._theme_target_pixels = 12 # default
+        self._all  = Color.all_colors()
+        self._cool = [ COLOR_BLUE, COLOR_CYAN, COLOR_DARK_BLUE, COLOR_DARK_CYAN,
+                       COLOR_CORNFLOWER, COLOR_INDIGO, COLOR_VIOLET, COLOR_DEEP_CYAN,
+                       COLOR_PURPLE, COLOR_SKY_BLUE ]
+        self._warm = [ COLOR_RED, COLOR_YELLOW, COLOR_DARK_RED, COLOR_DARK_YELLOW,
+                       COLOR_ORANGE, COLOR_TANGERINE, COLOR_PINK, COLOR_FUCHSIA, COLOR_AMBER ]
+        self._wild = [ COLOR_MAGENTA, COLOR_DARK_MAGENTA, COLOR_CORNFLOWER, COLOR_INDIGO, COLOR_RED,
+                       COLOR_VIOLET, COLOR_PINK, COLOR_FUCHSIA, COLOR_PURPLE, COLOR_SKY_BLUE,
+                       COLOR_WHITE, COLOR_APPLE, COLOR_EMERALD, COLOR_TANGERINE, COLOR_AMBER ]
+        self._grey = [ COLOR_WHITE, COLOR_GREY_0, COLOR_GREY_1, COLOR_GREY_2, COLOR_GREY_3,
+                       COLOR_GREY_4, COLOR_GREY_5, COLOR_GREY_6, COLOR_GREY_7 ]
+        self._dark = [ COLOR_DARK_RED, COLOR_DARK_GREEN, COLOR_DARK_BLUE, COLOR_DARK_CYAN,
+                       COLOR_DARK_MAGENTA, COLOR_DARK_YELLOW, COLOR_PURPLE ]
+        self._palettes = {
+            'all':  self._all,
+            'cool': self._cool,
+            'warm': self._warm,
+            'wild': self._wild,
+            'grey': self._grey,
+            'dark': self._dark
+        }
+        self.reset_ring()
+        self._last_update_ts  = self._get_time()
+        self._ring_timer_hz = 24
+        self._ring_timer = self._create_ring_timer()
+        self._radiozoa_started   = False
+        self._pixel.set_color(0, COLOR_BLACK)
+        # ready
+
+    def _create_ring_timer(self):
+        from pyb import Timer
+
+        _ring_timer = Timer(1)
+        _ring_timer.init(freq=self._ring_timer_hz, callback=self._action)
+        return _ring_timer
+
+    def _create_pixel(self):
+        from pixel import Pixel
+        
+        _pixel_pin = self._config['pixel_pin']
+        family     = self._config['family']
+        if family == 'TINYS3':
+            import tinys3
+
+            _pixel_pin = tinys3.RGB_DATA
+            tinys3.set_pixel_power(1)
+        _pixel = Pixel(pin=_pixel_pin, pixel_count=RingController.PIXEL_COUNT, color_order=self._config['color_order'])
+        print('NeoPixel ring with {} pixels configured on pin {}'.format(RingController.PIXEL_COUNT, _pixel_pin))
+        _pixel.set_color(0, COLOR_CYAN)
+        time.sleep_ms(100)
+        _pixel.set_color(0, COLOR_BLACK)
+        return _pixel
+
+    # ring processing ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    def reset_ring(self):
+        for pixel in self._ring_model:
+            pixel.reset()
+        self._update_ring()
+
+    def _rotate_ring(self, shift=1):
+        if abs(shift) > 24:
+            raise ValueError('shift value outside of bounds.')
+        shift *= self._rotate_direction
+        self._ring_offset = (self._ring_offset + shift) % 24
+        self._update_ring()
+
+    def _update_ring(self):
+        for index in range(24):
+            rotated_index = (index - self._ring_offset) % 24
+            self._pixel.set_color(index, self._ring_model[rotated_index].color)
+
+    def _set_ring_color(self, index, color):
+        actual_index = (index + self._ring_offset) % 24
+        self._ring_model[actual_index].base_color = color
+        self._ring_model[actual_index].color = color.rgb
+        self._pixel.set_color(index, color.rgb)
+
+    def _restart_timer(self, freq=None):
+        '''
+        Restart timer 1 if either rotate or theme is enabled.
+        '''
+        if freq:
+            self._ring_timer_hz = freq
+        self._ring_timer.deinit()
+        if self._enable_rotate or self._enable_theme:
+#           self._ring_timer.init(freq=self._ring_timer_hz)
+            self._ring_timer.init(freq=self._ring_timer_hz, callback=self._action)
+
+    def _action(self, t):
+        if self._enable_rotate:
+            self._rotate_ring()
+        if self._enable_theme:
+            self._theme()
+
+    # theme processing ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    def _populate(self, count, palette_name):
+        palette = self._palettes.get(palette_name)
+        if palette is None:
+            print("ERROR: no such palette: '{}'".format(palette_name))
+            return
+        for pixel in self._ring_model:
+            pixel.reset()
+            pixel.phase = random.random()
+        selected = []
+        available = list(range(24))
+        for _ in range(count):
+            idx = random.randrange(len(available))
+            selected.append(available.pop(idx))
+        for i in selected:
+            color = random.choice(palette)
+            self._ring_model[i]. base_color = color
+            self._ring_model[i].color = color.rgb
+        self._update_ring()
+
+    def _init_theme(self, reset=False):
+        if reset:
+            self.reset_ring()
+            existing_count = 0
+        else:
+            existing_count = sum(1 for p in self._ring_model if p.is_active())
+        new_pixels_needed = max(0, self._theme_target_pixels - existing_count)
+        available_colors = [c for c in Color.all_colors() if c != COLOR_BLACK]
+        if new_pixels_needed > 0:
+            empty_positions = [i for i in range(24) if not self._ring_model[i].is_active()]
+            for _ in range(new_pixels_needed):
+                if not empty_positions:
+                    break
+                idx = random.randrange(len(empty_positions))
+                pos = empty_positions.pop(idx)
+                color = random.choice(available_colors)
+                self._ring_model[pos].base_color = color
+                self._ring_model[pos].color = color.rgb
+                self._ring_model[pos].phase = random.random()
+        self._update_ring()
+
+    def _theme(self):
+        for index in range(24):
+            pixel = self._ring_model[index]
+            if not pixel.is_active():
+                continue
+            pixel.phase = (pixel.phase + 1.0 / self._pulse_steps) % 1.0
+            brightness = (math.sin(pixel.phase * 2 * math.pi) + 1) / 2
+            r, g, b = pixel.base_color.rgb
+            pixel.color = (int(r * brightness), int(g * brightness), int(b * brightness))
+        self._update_ring()
+
+    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    def pre_process(self, cmd, arg0, arg1, arg2, arg3, arg4):
+        '''
+        Pre-process the arguments, returning a response and color if a match occurs.
+        Such a match precludes further processing.
+        '''
+        print("🐥 pre-process command '{}' with arg0: '{}'; arg1: '{}'; arg2: '{}'; arg3: '{}'; arg4: '{}'".format(cmd, arg0, arg1, arg2, arg3, arg4))
+        if arg0 == "__extend_here__":
+            return None, None
+
+        elif arg0 == "ring":
+            try:
+                _rotating = self._enable_rotate
+                if arg1 == 'clear':
+                    self.reset_ring()
+                    return Controller._PACKED_ACK, COLOR_BLACK
+                elif arg1 == 'all':
+                    if arg2 == 'off' or arg2 == 'clear':
+                        self.reset_ring()
+                        return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                    else:
+                        color = self._get_color(arg2, arg3)
+                        if not color:
+                            print("ERROR: could not find color: arg2: '{}'; arg3: '{}'".format(arg2, arg3))
+                            return Controller._PACKED_ERR, COLOR_RED
+                        for idx in range(RingController.PIXEL_COUNT):
+                            self._set_ring_color(idx, color)
+                        return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                else:
+                    index = int(arg1) - 1
+                    if 0 <= index <= 23:
+                        color = self._get_color(arg2, arg3)
+                        if color:
+                            self._set_ring_color(index, color)
+                            return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                    else:
+                        print("ERROR: index value {} out of bounds (1-{}).".format(index, RingController.PIXEL_COUNT))
+                        return Controller._PACKED_ERR, COLOR_RED
+                print("ERROR: could not process input: '{}'".format(cmd))
+            finally:
+                self._enable_rotate = _rotating
+            return Controller._PACKED_ERR, COLOR_RED
+
+        elif arg0 == "rotate":
+            if arg1:
+                if arg1 == 'on':
+                    self._enable_rotate = True
+                    self._restart_timer()
+                    return Controller._PACKED_ACK. COLOR_DARK_GREEN
+                elif arg1 == 'off':
+                    self._enable_rotate = False
+                    self._restart_timer()
+                    return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                elif arg1 == 'fwd' or arg1 == 'cw':
+                    self._rotate_direction = 1
+                    return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                elif arg1 == 'rev' or arg1 == 'ccw':
+                    self._rotate_direction = -1
+                    return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                elif arg1 == 'hz':
+                    hz = int(arg2)
+                    if hz > 0:
+                        self._restart_timer(hz)
+                        return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                    else:
+                        return Controller._PACKED_ERR, COLOR_RED
+                else:
+                    shift = int(arg1)
+                    self._rotate_ring(shift)
+                return Controller._PACKED_ACK, COLOR_DARK_GREEN
+            else:
+                return Controller._PACKED_ERR, COLOR_RED
+
+        elif arg0 == "theme":
+            if arg1:
+                if arg1 == 'on':
+                    self._init_theme()
+                    self._enable_theme = True
+                    return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                elif arg1 == 'off':
+                    self._enable_theme = False
+                    self._restart_timer()
+                    return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                elif arg1 == 'hz':
+                    hz = int(arg2)
+                    if hz > 0:
+                        self._restart_timer(hz)
+                        return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                    return Controller._PACKED_ERR, COLOR_RED
+                elif arg1 == 'pixels':
+                    _themed = self._enable_theme
+                    try:
+                        self._enable_theme = False
+                        target = int(arg2)
+                        if 1 <= target <= RingController.PIXEL_COUNT:
+                            self._theme_target_pixels = target
+                            self._init_theme(reset=True)
+                            return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                        return Controller._PACKED_ERR, COLOR_RED
+                    finally:
+                        self._enable_theme = _themed
+
+                elif arg1 in self._palettes:
+                    _themed = self._enable_theme
+                    _rotating = self._enable_rotate
+                    self._enable_rotate = False
+                    self._enable_theme = False
+                    self._ring_offset = 0
+                    try:
+                        target = int(arg2)
+                        self._theme_target_pixels = target
+                        if 1 <= target <= RingController.PIXEL_COUNT:
+                            self._populate(target, arg1)
+                            return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                        else:
+                            return Controller._PACKED_ERR, COLOR_RED
+                    except Exception as e:
+                        print('ERROR: {} raised with palette name: {}'.format(type(e), e))
+                        return Controller._PACKED_ERR, COLOR_RED
+                    finally:
+                        self._enable_theme = _themed
+                        self._enable_rotate = _rotating
+                    return Controller._PACKED_ACK, COLOR_DARK_GREEN
+
+                elif arg1 == 'steps':
+                    steps = int(arg2)
+                    if steps > 0:
+                        self._pulse_steps = steps
+                        return Controller._PACKED_ACK, COLOR_DARK_GREEN
+                    return Controller._PACKED_ERR, COLOR_RED
+                else:
+                    print("ERROR: could not process input:  '{}'".format(cmd))
+                    return Controller._PACKED_ERR, COLOR_RED
+                return Controller._PACKED_ACK, COLOR_DARK_GREEN
+            else:
+                return Controller._PACKED_ERR, COLOR_RED
+
+        else:
+            return None, None
+    
+    def post_process(self, cmd, arg0, arg1, arg2, arg3, arg4):
+        '''
+        Post-process the arguments, returning a NACK and color if no match on arg0 occurs.
+        '''
+        print("🐥 post-process command '{}' with arg0: '{}'; arg1: '{}'; arg2: '{}'; arg3: '{}'; arg4: '{}'".format(cmd, arg0, arg1, arg2, arg3, arg4))
+        if arg0 == "__extend_here__":
+            return None, None
+        else:
+            return None, None
+
+#EOF

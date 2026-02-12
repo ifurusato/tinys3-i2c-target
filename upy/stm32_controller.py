@@ -30,16 +30,25 @@ class PixelState:
 
 class STM32Controller(Controller):
     STRIP_PIN = 'B12'
-    RING_PIN  = 'B14'
     '''
     An implementation using a WeAct STM32F405 optionally connected to a NeoPixel
     strip and a 24 pixel NeoPixel ring.
     '''
-    def __init__(self):
+    def __init__(self, config):
+        super().__init__(config)
         self._pixel_off_pending = False
-        self._pixel = Pixel(pin=STM32Controller.RING_PIN, pixel_count=1, brightness=0.1)
-        super().__init__(self._pixel, 'STM32')
         # ready
+
+    def _create_pixel(self):
+        from pixel import Pixel
+
+        _pixel_pin = self._config['pixel_pin']
+        _pixel = Pixel(pin=_pixel_pin, pixel_count=1, color_order=self._config['color_order'])
+        print('NeoPixel configured on pin {}'.format(_pixel_pin))
+        _pixel.set_color(0, COLOR_CYAN)
+        time.sleep_ms(100)
+        _pixel.set_color(0, COLOR_BLACK)
+        return _pixel
 
     def _create_pixel_timer(self):
         from pyb import Timer
@@ -62,5 +71,26 @@ class STM32Controller(Controller):
             self._pixel.set_color(0, COLOR_BLACK)
         # then do normal tick processing
         super().tick(delta_ms)
+
+    def pre_process(self, cmd, arg0, arg1, arg2, arg3, arg4):
+        '''
+        Pre-process the arguments, returning a response and color if a match occurs.
+        Such a match precludes further processing.
+        '''
+        print("🦊 pre-process command '{}' with arg0: '{}'; arg1: '{}'; arg2: '{}'; arg3: '{}'; arg4: '{}'".format(cmd, arg0, arg1, arg2, arg3, arg4))
+        if arg0 == "__extend_here__":
+            return None, None
+        else:
+            return None, None
+    
+    def post_process(self, cmd, arg0, arg1, arg2, arg3, arg4):
+        '''
+        Post-process the arguments, returning a NACK and color if no match on arg0 occurs.
+        '''
+        print("🦊 post-process command '{}' with arg0: '{}'; arg1: '{}'; arg2: '{}'; arg3: '{}'; arg4: '{}'".format(cmd, arg0, arg1, arg2, arg3, arg4))
+        if arg0 == "__extend_here__":
+            return None, None
+        else:
+            return None, None
 
 #EOF

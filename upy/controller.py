@@ -6,7 +6,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2025-11-16
-# modified: 2026-02-11
+# modified: 2026-02-12
 
 import sys
 import time
@@ -29,18 +29,14 @@ class Controller:
     A controller for command strings received from the I2CSlave.
 
     Args:
-        pixel:    an instance of the Pixel class, provides NeoPixel support
-        family:   the board family
+        config: the application configuration
     '''
-    def __init__(self, pixel, family):
-        self._startup_ms = time.ticks_ms()
-        self._family = family
-        self._slave = None
-        # neopixel support, with initial blink
-        self._pixel = pixel
-        self._pixel.set_color(0, COLOR_CYAN)
-        time.sleep_ms(100)
-        self._pixel.set_color(0, COLOR_BLACK)
+    def __init__(self, config):
+        self._startup_ms            = time.ticks_ms()
+        self._config                = config
+        self._slave                 = None
+        # neopixel support
+        self._pixel = self._create_pixel()
         # heartbeat feature
         self._heartbeat_enabled     = False
         self._heartbeat_on_time_ms  = 50
@@ -55,6 +51,23 @@ class Controller:
         self._create_pixel_timer()
         self._services_started      = False
         print('ready.')
+
+    def _create_pixel(self):
+        from pixel import Pixel
+
+        _pixel_pin = self._config['pixel_pin']
+        family    = self._config['family']
+        if family == 'TINYS3':
+            import tinys3
+
+            _pixel_pin = tinys3.RGB_DATA
+            tinys3.set_pixel_power(1)
+        _pixel = Pixel(pin=_pixel_pin, pixel_count=1, color_order=self._config['color_order'])
+        print('NeoPixel configured on pin {}'.format(_pixel_pin))
+        _pixel.set_color(0, COLOR_CYAN)
+        time.sleep_ms(100)
+        _pixel.set_color(0, COLOR_BLACK)
+        return _pixel
 
     def _create_pixel_timer(self):
         try:

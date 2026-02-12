@@ -77,7 +77,7 @@ def main():
             elif last_user_msg is not None and user_msg == 'r':
                 # repeat last command
                 user_msg = last_user_msg
-            elif user_msg.strip() == 'exit':
+            elif user_msg.strip() == 'exit' or user_msg.strip() == 'quit':
                 break
             elif user_msg == 'go':
                 if worker_thread and worker_thread.is_alive():

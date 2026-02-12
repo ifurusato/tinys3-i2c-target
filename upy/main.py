@@ -17,8 +17,11 @@ from i2c_slave import I2CSlave
 
 # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
+RING_CONTROLLER  = True # subclasses Stm32Controller
+RING_PIXEL_COUNT = 24
+
 RELOAD_MODULES = True
-BOARD = 'ESP32_TINY'  # 'TINYS3' | 'TINYFX' | 'RPI_PICO' | 'STM32F405' | 'ESP32_TINY'
+BOARD = 'STM32F405'  # 'TINYS3' | 'TINYFX' | 'RPI_PICO' | 'STM32F405' | 'ESP32_TINY'
 
 BOARD_CONFIGS = {
     'TINYS3': {
@@ -31,7 +34,6 @@ BOARD_CONFIGS = {
         'family': 'ESP32',
         'pixel_pin': None,  # set by tinys3.RGB_DATA
         'color_order': 'GRB',
-        'needs_pixel_power': True,
     },
     'TINYFX': {
         'name': 'Pimoroni TinyFX',
@@ -43,7 +45,6 @@ BOARD_CONFIGS = {
         'family': 'RP2',
         'pixel_pin': None,
         'color_order': None,
-        'needs_pixel_power': False,
     },
     'RPI_PICO': {
         'name': 'Raspberry Pi Pico',
@@ -55,7 +56,6 @@ BOARD_CONFIGS = {
         'family': 'RP2',
         'pixel_class': 'PicoPixel',
         'color_order': None,
-        'needs_pixel_power': False,
     },
     'STM32F405': {
         'name': 'WeAct STM32F405',
@@ -67,7 +67,6 @@ BOARD_CONFIGS = {
         'family': 'STM32',
         'pixel_pin': 'B14',
         'color_order': 'GRB',
-        'needs_pixel_power': False,
     },
     'ESP32_TINY': {
         'name': 'WaveShare ESP32-S3 Tiny',
@@ -79,7 +78,6 @@ BOARD_CONFIGS = {
         'family': 'ESP32',
         'pixel_pin': 21,
         'color_order': 'RGB',
-        'needs_pixel_power': False,
     },
 }
 
@@ -97,34 +95,18 @@ if RELOAD_MODULES:
 
 def create_controller(config):
     if config['controller_class'] == 'STM32Controller':
-        from stm32_controller import STM32Controller
+        if RING_CONTROLLER:
+            from ring_controller import RingController
 
-        return STM32Controller()
+            return RingController(config)
+        else:
+            from stm32_controller import STM32Controller
+
+            return STM32Controller(config)
     else:
         from controller import Controller
 
-        family = config['family']
-        pixel = create_pixel(config)
-        return Controller(pixel, family)
-
-def create_pixel(config):
-    if config.get('pixel_class') == 'PicoPixel':
-        from pico_pixel import PicoPixel
-        print('on-board LED configured.')
-        return PicoPixel()
-    elif config['pixel_pin']:
-        from pixel import Pixel
-        pixel_pin = config['pixel_pin']
-        if BOARD == 'TINYS3':
-            import tinys3
-            pixel_pin = tinys3.RGB_DATA
-            if config['needs_pixel_power']:
-                tinys3.set_pixel_power(1)
-        pixel = Pixel(pin=pixel_pin, pixel_count=1, color_order=config['color_order'])
-        print('NeoPixel configured on pin {}'.format(pixel_pin))
-        pixel.set_color(0, (0, 0, 0))
-        return pixel
-    return None
+        return Controller(config)
 
 async def i2c_loop(controller, slave):
     global enabled
