@@ -133,8 +133,7 @@ Commands:
     heartbeat on | off                      # control heartbeat flash
     ping                                    # returns "PING"
     data                                    # return sample data
-    reset                                   # force hardware reset
-''')
+    reset                                   # force hardware reset''')
 
     def process(self, cmd):
         '''

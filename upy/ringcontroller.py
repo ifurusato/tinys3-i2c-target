@@ -203,6 +203,18 @@ class RingController(STM32Controller):
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
+    def print_help(self):
+        super().print_help()
+        print('''    ring clear |                            # set all ring pixels off
+       | all ( off | clear | <name> )       # set all ring pixels off or to color
+    rotate on | off | fwd | cw | rev | ccw  # control ring pixel rotation
+       | hz <n>                             # set rotation frequency
+    theme on | off                          # enable/disable theme pulsation
+       | hz <n>                             # set theme pulse frequency
+       | pixels <count>                     # enable randomly-placed pixels in current palette
+       | palette <name> <count>             # set palette with count of randomly-placed pixels
+''')
+
     def pre_process(self, cmd, arg0, arg1, arg2, arg3, arg4):
         '''
         Pre-process the arguments, returning a response and color if a match occurs.
