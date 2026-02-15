@@ -11,19 +11,18 @@ operating system for the KRZ04 robot, see the `krzos`_ repository.
 
 This permits bidirectional transactions between master and slave, with data
 returned up to 62 characters, using a CRC8 checksum. Round-trip performance
-corresponds to message length, designed for a 39 characters packet requiring
-an 11ms delay, but if you are requesting shorter packets or only acknowledgements
-(e.g., "ACK" or "ERR") this can be set lower, down to ~3-5ms. This setting may
-be found in ``i2c_master/__init__.py``.
+corresponds to message length, designed for up to 62 characters packet with
+a master delay time of 8ms (with a 1MHz I2C baud rate). See the section on
+Performance below for further details.
 
-The target device in this implementation is the Unexpected Maker TinyS3, but any 
+The target device in this implementation is the Unexpected Maker TinyS3, but any
 microcontroller with an on-board NeoPixel may be used with suitable changes to
 the configuration. If no NeoPixel is required the slave-side code may be modified
 to perform other tasks. Typically, the SDA, SCL and NeoPixel pins will need to be
 changed to match those used on the device.
 
 This was developed using CPython on a Raspberry Pi as I2C master, and MicroPython
-on an Unexpected Maker TinyS3 as slave, but could be adapted to different hardware. 
+on an Unexpected Maker TinyS3 as slave, but could be adapted to different hardware.
 
 
 Requirements
@@ -41,7 +40,7 @@ the microcontroller. Versions prior to that do not provide I2CTarget support.
 Installation
 ************
 
-Copy the ``./upy/`` files to your microcontroller. I recommend `rshell`_ or `mpremote`_, 
+Copy the ``./upy/`` files to your microcontroller. I recommend `rshell`_ or `mpremote`_,
 though any tool will do.
 
 .. _rshell: https://github.com/dhylands/rshell
@@ -52,7 +51,7 @@ Configuration
 *************
 
 In the ``upy/main.py`` script is a ``BOARD`` variable that should be set to match
-the microcontroller being used. The ``BOARD_CONFIGS`` dict contains the 
+the microcontroller being used. The ``BOARD_CONFIGS`` dict contains the
 configuration for the specified microcontroller, and can be modified as necessary.
 
 The I2C address used by the I2C slave may be found in the main.py configuration,
@@ -122,16 +121,22 @@ Performance
 If the slave performance is too slow (for any reason), the slave will generally
 still execute the action but return the command sent to it (which is what's in
 its memory buffer prior to being processed), otherwise "ACK", "ERR" or specific
-data. Increasing the delay on the I2C master will eliminate this::
+data. Increasing the delay on the I2C master will eliminate this. This setting
+may be found in ``i2c_master/__init__.py``::
 
-    WRITE_READ_DELAY_SEC = 0.008
+    WRITE_READ_DELAY_MS = 8
 
 If you don't care about the slave's response (i.e., it's entirely a master-write
-application) you can set the delay as low as 3ms. If the response matters, in
-particular, if you're sending data back from the slave to the master, then the
-delay time is tied to the packet length and the I2C baud rate. Setting the baud
-rate of the master (e.g., a Raspberry Pi) to 1MHz will permit reasonably reliable
-transactions of up to the 62 character limit with a delay time as low as 8ms.
+application) you can set the delay as low as 3ms. If the response matters to you,
+in particular, if you're sending data back from the slave to the master, then the
+delay time is tied to the packet length and the I2C baud rate. Transaction
+reliability is tied to all three.
+
+The default baud rate of a Raspberry Pi is 100kHz. You can increase this to
+400kHz or even 1MHz. At 1MHz this will permit reasonably reliable transactions
+of up to the 62 character limit with a delay time as low as 11ms, with some
+packet losses. With a shorter packet size of 40 characters a delay of 8ms is
+possible, 6-7ms with a packet size of 20 characters.
 
 
 Files
