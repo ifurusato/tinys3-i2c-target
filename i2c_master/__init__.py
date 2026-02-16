@@ -49,6 +49,24 @@ class I2CMaster:
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
+    def get_write_read_delay_ms(self):
+        '''
+        Return the current write/read delay in milliseconds.
+        '''
+        return self._delay_sec * 1000
+
+    def set_write_read_delay_ms(self, delay_ms):
+        '''
+        Override the default write/read delay to the prescribed number of milliseconds.
+        '''
+        self._delay_sec = delay_ms / 1000
+
+    def reset_write_read_delay_ms(self):
+        '''
+        Reset the default write/read delay to the default number of milliseconds.
+        '''
+        self._delay_sec = self.WRITE_READ_DELAY_MS / 1000
+
     def set_fail_on_exception(self, fail):
         self._fail_on_exception = fail
 

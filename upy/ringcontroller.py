@@ -6,13 +6,14 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-02-09
-# modified: 2026-02-12
+# modified: 2026-02-17
 
 import sys
 import time
 import math, random
+from pixel_state import PixelState
 from controller import Controller
-from stm32controller import STM32Controller, PixelState
+#from stm32controller import STM32Controller
 from colors import *
 from pixel import Pixel
 

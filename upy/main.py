@@ -38,7 +38,7 @@ BOARD_CONFIGS = {
     'TINYFX': {
         'name': 'Pimoroni Tiny FX',
         'i2c_id': 0,
-        'i2c_address': 0x47,
+        'i2c_address': 0x45,
         'scl_pin': 17,
         'sda_pin': 16,
         'controller_class': 'TinyFxController',

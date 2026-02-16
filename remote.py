@@ -97,6 +97,12 @@ def main():
             print('user msg: {}'.format(user_msg))
             with i2c_lock:
                 response = master.send_request(user_msg)
+                if response == user_msg:
+                    print('🍓')
+#   def get_write_read_delay_ms(self):
+#   def reset_write_read_delay_ms(self):
+#   def set_write_read_delay_ms(self, delay_ms):
+
             print('response: {}'.format(response))
             last_user_msg = user_msg
 

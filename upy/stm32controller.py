@@ -6,30 +6,12 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-02-09
-# modified: 2026-02-11
+# modified: 2026-02-17
 
-import sys
 from controller import Controller
 from colors import *
-from pixel import Pixel
-
-class PixelState:
-    def __init__(self, color=COLOR_BLACK, phase=0.0):
-        self.base_color = color
-        self.color = color.rgb
-        self.phase = phase
-        self._pixel_off_pending = False
-
-    def is_active(self):
-        return self.base_color != COLOR_BLACK
-
-    def reset(self):
-        self.base_color = COLOR_BLACK
-        self.color = self.base_color.rgb
-        self.phase = 0.0
 
 class STM32Controller(Controller):
-    STRIP_PIN = 'B12'
     '''
     An implementation using a WeAct STM32F405 optionally connected to a NeoPixel
     strip and a 24 pixel NeoPixel ring.
