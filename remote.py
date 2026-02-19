@@ -21,10 +21,10 @@ from i2c_master import I2CMaster
 
 # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
-I2C_ID           = 1       # I2C bus identifier
+I2C_ID           = 0       # I2C bus identifier
 I2C_ADDRESS      = 0x47    # default I2C device address
 WORKER_DELAY_SEC = 1.0     # time between automatic polls
-REQUEST          = "data"  # poll command
+REQUEST          = "distances"  # poll command
 
 
 def worker_loop(master, stop_event, lock):
@@ -98,7 +98,7 @@ def main():
             with i2c_lock:
                 response = master.send_request(user_msg)
                 if response == user_msg:
-                    print('🍓')
+                    print('🍓 response matches input.')
 #   def get_write_read_delay_ms(self):
 #   def reset_write_read_delay_ms(self):
 #   def set_write_read_delay_ms(self, delay_ms):
